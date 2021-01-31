@@ -38,6 +38,12 @@ Cart::quantity(CART_ITEM_ID, NEW_COUNT);
 Cart::total();
 ```
 
+##### Total cart count
+
+```php
+Cart::count();
+```
+
 ##### Remove
 
 ```php

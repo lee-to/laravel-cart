@@ -15,6 +15,10 @@ class Cart extends Model
      */
     protected $fillable = ["session_id", "user_id", "product_id", "price", "quantity"];
 
+    protected $attributes = [
+        "quantity" => 1,
+    ];
+
     public static function userCarts($id = null) {
         $user_id = $id ? $id : (auth(config("cart.guard"))->check() ? auth(config("cart.guard"))->id() : null);
 
@@ -22,14 +26,14 @@ class Cart extends Model
             return false;
         }
 
-        return self::where(["user_id" => $user_id])->get();
+        return self::with(["vars", "product"])->where(["user_id" => $user_id])->get();
     }
 
     /**
      * @return mixed
      */
     public static function get() {
-        return self::where(["session_id" => session()->getId()])->get();
+        return self::with(["vars", "product"])->where(["session_id" => session()->getId()])->get();
     }
 
     /**
@@ -40,15 +44,21 @@ class Cart extends Model
     public static function add($product_id, $vars = []) {
         $product = config("cart.product_model")::findOrFail($product_id);
 
-        if($cart = self::where(["session_id" => session()->getId(), "product_id" => $product->id])->first()) {
-            $cart->quantity++;
-            $cart->save();
+        if($cart = self::where([
+                "session_id" => session()->getId(),
+                "product_id" => $product->id
+            ])->when(!empty($vars), function ($q, $v) use($vars) {
+                $q->whereHas('vars', function ($q) use($vars) {
+                    $q->whereIn('variant_id', $vars);
+                });
+            })->first()) {
+
+            $cart->increment("quantity");
         } else {
             $cart = self::create([
                 "session_id" => session()->getId(),
                 "product_id" => $product->id,
                 "user_id" => auth(config("cart.guard"))->check() ? auth(config("cart.guard"))->id() : null,
-                "quantity" => 1,
                 "price" => $product->price,
             ]);
         }
@@ -63,7 +73,7 @@ class Cart extends Model
     /**
      * @param $id
      * @param $quantity
-     * @return int
+     * @return boolean
      */
     public static function quantity($id, $quantity) {
         if($quantity <= 0) {
@@ -71,11 +81,9 @@ class Cart extends Model
         }
 
         $cart = self::findOrFail($id);
-
         $cart->quantity = $quantity;
-        $cart->save();
 
-        return $cart;
+        return $cart->save();
     }
 
     /**
@@ -97,7 +105,7 @@ class Cart extends Model
      * @return mixed
      */
     public static function total() {
-        return self::where(["session_id" => session()->getId()])->get()->map(function ($item) {
+        return self::get()->map(function ($item) {
             return $item->price * $item->quantity;
         })->sum();
     }

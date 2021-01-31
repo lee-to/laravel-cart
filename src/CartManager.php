@@ -44,17 +44,24 @@ class CartManager
     }
 
     /**
-     * @return mixed
+     * @return boolean
      */
     public function flush() {
         return CartModel::flush();
     }
 
     /**
-     * @return mixed
+     * @return numeric
      */
     public function total() {
         return CartModel::total();
+    }
+
+    /**
+     * @return integer
+     */
+    public function count() {
+        return CartModel::count();
     }
 
     /**
